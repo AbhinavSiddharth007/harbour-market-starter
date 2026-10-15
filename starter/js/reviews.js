@@ -140,14 +140,30 @@ async function loadReviews() {
 
 // The card's "★ 4.7 · 3 reviews" is stale after a POST or DELETE:
 // the server computes the average, so ask it for the stall again.
+// GET is safe to repeat, so one retry covers the server's random 500s.
+// If both fail, work the numbers out from the reviews the dialog already has.
 async function refreshStall(id) {
-  try {
-    const fresh = await getJSON(`/stalls/${encodeURIComponent(id)}`);
-    const index = state.stalls.findIndex((stall) => stall.id === id);
-    if (index !== -1) state.stalls[index] = fresh;
-  } catch (error) {
-    // the count is off by one until the next reload; the review itself is saved
-    console.warn(`GET /stalls/${id} failed, the card's rating may be stale:`, error);
+  const index = state.stalls.findIndex((stall) => stall.id === id);
+  let fresh = null;
+  for (let attempt = 1; attempt <= 2 && !fresh; attempt++) {
+    try {
+      fresh = await getJSON(`/stalls/${encodeURIComponent(id)}`);
+    } catch (error) {
+      console.warn(`GET /stalls/${id} failed (attempt ${attempt}):`, error);
+    }
+  }
+  if (index !== -1) {
+    if (fresh) {
+      state.stalls[index] = fresh;
+    } else if (wall.stallId === id && wall.status === "ready") {
+      const count = wall.reviews.length;
+      const average = count ? wall.reviews.reduce((sum, review) => sum + review.rating, 0) / count : null;
+      state.stalls[index] = {
+        ...state.stalls[index],
+        reviewCount: count,
+        rating: average === null ? null : Math.round(average * 10) / 10,
+      };
+    }
   }
   render();
   if (dialog.open) draw();
