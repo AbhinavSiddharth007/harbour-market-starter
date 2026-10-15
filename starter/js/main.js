@@ -5,6 +5,7 @@ import { render } from "./render.js";
 import { setupMenu } from "./menu.js";
 import { setupTickets } from "./tickets.js";
 import { getJSON } from "./api.js";
+import { setupReviews } from "./reviews.js";
 
 const filters = document.querySelector(".filters");
 const list = document.querySelector(".vendor-list");
@@ -68,5 +69,6 @@ document.querySelector(".retry").addEventListener("click", () => {
 
 setupMenu();
 setupTickets();
+setupReviews();
 load(); // the filter and the ♥ from localStorage, before the stalls arrive
 await loadStalls();
